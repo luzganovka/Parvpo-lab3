@@ -11,6 +11,7 @@ import random
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 USERS_NUM = 10
 
@@ -42,18 +43,11 @@ class Address(Base):
         return f"Address(id={self.id!r}, email_address={self.email_address!r})"
 
 #################################################################################
-#       CREATE ENGINE FOR DB
-#################################################################################
-
-engine = create_engine("sqlite://", echo=False) #DEV: echo=True for testing
-Base.metadata.create_all(engine)
-
-#################################################################################
 #       INITIALISE DB WITH USERS
 #################################################################################
-
-with Session(engine) as session:
-    for i in range (USERS_NUM):
+def DB_init(num):
+    session = Session()
+    for i in range (num):
         hilda = User(
             login       =                        str(''.join(random.choices(string.ascii_letters, k=5))),
             password    =                        str(''.join(random.choices(string.ascii_letters, k=7))),
@@ -69,17 +63,66 @@ with Session(engine) as session:
     )
     session.add_all([hilda])
     session.commit()
+    session.close()
 
 #################################################################################
 #       SELECT USER BY LOGIN
 #################################################################################
 
-login = "Hilda"
+def get_user_by_login(login):
+    session = Session()  # Create new session for particular request
+    try:
+        stmt = select(User).where(User.login.in_([login]))
+        return session.scalars(stmt).all()  # calling .all(), to create a list
+    finally:
+        session.close()
 
-with Session(engine) as session:
+#################################################################################
+#       SERVER PART
+#################################################################################
 
-    stmt = select(User).where(User.login.in_(["Hilda"]))
+from flask import Flask, request, jsonify
+# import requests
 
-    print("DB:  I've found:")
-    for user in session.scalars(stmt):
-        print(user)
+app = Flask(__name__)
+
+@app.route('/', methods=['GET'])
+def handle_post():
+    session = Session()
+    print("DB:\tGot get request", flush=True)
+
+    login = request.args.get('login')
+    print(f"DB:\tGot login = '{login}'", flush=True)
+    # pid = int(request.headers['pid'])
+    found = get_user_by_login(login)
+
+    print(f"DB:\tI've found:\t{found[0]}", flush=True)
+    session.close()
+    return jsonify({"message": "Data received!", "id": found[0].id}), 200
+
+#################################################################################
+#       MAIN
+#################################################################################
+
+if __name__=='__main__':
+
+    #################################################################################
+    #       CREATE ENGINE AND INIT DB
+    #################################################################################
+
+    engine = create_engine("sqlite:///database/users.db", echo=False)   #DEV: echo=True for testing
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    Session = scoped_session(session_factory)
+    print("DB:\tEngine created")
+
+    DB_init(USERS_NUM)
+    print("DB:\tDB inited")
+    
+    print("DB:\tStarting server...")
+    app.run(debug=False, host="0.0.0.0", port=8080)
+
+    # found = get_user_by_login("Hilda")
+    # for user in found:
+    #     print(f"MAIN:\t{user}")
+    
