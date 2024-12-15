@@ -1,0 +1,22 @@
+# version: '2'
+
+services:
+
+  database:
+    build:
+      context: ./database
+      no_cache: true
+    depends_on:
+      - worker
+    networks:
+      - lab3network
+
+  worker:
+    build:
+      context: ./worker
+      no_cache: true
+    networks:
+      - lab3network
+
+networks:
+  lab3network:

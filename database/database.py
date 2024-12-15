@@ -98,7 +98,10 @@ def handle_post():
 
     print(f"DB:\tI've found:\t{found[0]}", flush=True)
     session.close()
-    return jsonify({"message": "Data received!", "id": found[0].id}), 200
+
+    # DEV: this return is unsafe!
+    # str_addresses = ''.join(str(x)+"," for x in found[0].addresses)
+    return jsonify({"id": found[0].id, "password": found[0].password}), 200
 
 #################################################################################
 #       MAIN
