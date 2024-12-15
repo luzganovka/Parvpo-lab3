@@ -110,7 +110,7 @@ if __name__=='__main__':
     #       CREATE ENGINE AND INIT DB
     #################################################################################
 
-    engine = create_engine("sqlite:///database/users.db", echo=False)   #DEV: echo=True for testing
+    engine = create_engine("sqlite:///users.db", echo=False)   #DEV: echo=True for testing
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)
     Session = scoped_session(session_factory)
