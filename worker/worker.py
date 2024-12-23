@@ -26,11 +26,15 @@ def ask_DB(login, password):
 def handle_post():
     print("DWORKER:\tGot post request", flush=True)
 
+    data = request.get_json()
+    # login = data.get('login', '')
+    print("ADDER: Received data:", data['login'], flush=True)
+
     login    = request.form.get('login')
     password = request.form.get('password')
     print(f"WORKER:\tGot login = '{login}'", flush=True)
 
-    return ask_DB(login, password)
+    return ask_DB(data['login'], data['password'])
     
 
 @app.route('/', methods=['GET'])
