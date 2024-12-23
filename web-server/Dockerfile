@@ -1,12 +1,13 @@
+# FROM python:3
 FROM python:3.9-slim
 
-WORKDIR /app
+# Set the working directory inside the container
+WORKDIR /usr/src/app
 
-COPY requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
+# Copy to the working directory
 COPY . .
 
-EXPOSE 5000
+RUN python -m pip install -r requirements.txt
 
-CMD ["python", "web-server.py"]
+# Set the entry point for the container
+CMD [ "python", "./web-server.py" ]

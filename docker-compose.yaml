@@ -15,6 +15,21 @@ services:
       no_cache: true
     depends_on:
       - database
+      - rabbitmq
+      - web-server
+    networks:
+      - lab3network
+
+  rabbitmq:
+    image: rabbitmq:3-management  # RabbitMQ с веб-интерфейсом
+    # container_name: rabbitmq-container
+    # container_name: rabbitmq
+    ports:
+      - "5672:5672"  # Порт для работы с брокером
+      - "15672:15672"  # Порт для управления через веб-интерфейс
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     networks:
       - lab3network
 
@@ -26,7 +41,7 @@ services:
       - "5000:5000"
       - "8080:8080"
     depends_on:
-      - worker
+      - rabbitmq
     networks:
       - lab3network
 

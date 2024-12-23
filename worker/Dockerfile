@@ -1,4 +1,5 @@
-FROM python:3
+# FROM python:3
+FROM python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
@@ -7,6 +8,7 @@ WORKDIR /usr/src/app
 COPY . .
 
 RUN python -m pip install -r requirements.txt
+
 # python3 -m venv myenv
 # source myenv/bin/activate
 
