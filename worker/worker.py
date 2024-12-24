@@ -1,31 +1,47 @@
-from flask import Flask, request, jsonify
-# import requests
+#from flask import Flask, request, jsonify
+import requests
+from requests.exceptions import HTTPError
 import pika
 import json
+import time
+time.sleep(30)
+#app = Flask(__name__)
 
-app = Flask(__name__)
+#worker-1  |   File "/usr/src/app/./worker.py", line 17, in ask_DB
+#worker-1  |     response = requests.get(url)
+#worker-1  | NameError: name 'requests' is not defined
+
 
 # Настройки RabbitMQ
 RABBITMQ_HOST = 'rabbitmq'  # Имя RabbitMQ-контейнера из docker-compose.yml
 QUEUE_NAME = 'login_queue'
 
+
 def ask_DB(login, password):
-    url = f'http://database:8080/?login={login}'
-    # curl "http://172.18.0.2:8080?login=Hilda&password=123"
-    # curl --data "login=Hilda&password=123" http://172.18.0.2:8080
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        data = response.json()
-        user_id = data.get("id")
-        if password == data.get("password"):
-            print(f"WORKER:\tWelcome!", flush=True)
-            return jsonify({"message": "Welcome"}), 200
+        url = f'http://database:8080/?login={login}'
+        try:
+            response = requests.get(url)
+            #requests.post('https://httpbin.org/post', data={'key':'value'})
+
+            # если ответ успешен, исключения задействованы не будут
+            response.raise_for_status()
+        except HTTPError as http_err:
+            print(f'DB-query: HTTP error occurred: {http_err}')  # Python 3.6
+        except Exception as err:
+            print(f'DB-query: Other error occurred: {err}')  # Python 3.6
         else:
-            print(f"WORKER:\tWrong login or password", flush=True)
-            return jsonify({"message": "Wrong login or password"}), 200
-    else:
-        return jsonify({"message": "Error on connection between WORKER and DB"}), 500
+            print('DB-query: Success!')
+
+        if response.status_code == 200:
+            data = response.json()
+            user_id = data.get("id")
+            if password == data.get("password"):
+                print(f"WORKER:\tWelcome!", flush=True)
+                return "{'message': 'Welcome'}", 200
+            else:
+                print(f"WORKER:\tWrong login or password", flush=True)
+                return "{'message': 'Wrong login or password'}", 200
+
     
 
 # @app.route('/', methods=['POST'])
@@ -75,6 +91,7 @@ def main():
     channel = connection.channel()
     channel.queue_declare(queue=QUEUE_NAME, durable=True)
     
+
     print("WORKER:\tWorker is waiting for messages...", flush=True)
     channel.basic_consume(queue=QUEUE_NAME, auto_ack=True, on_message_callback=process_message)
     channel.start_consuming()

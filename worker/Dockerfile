@@ -14,3 +14,5 @@ RUN python -m pip install -r requirements.txt
 
 # Set the entry point for the container
 CMD [ "python", "./worker.py" ]
+# CMD [ "sh" ]
+

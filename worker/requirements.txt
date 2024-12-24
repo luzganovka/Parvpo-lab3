@@ -1,3 +1,4 @@
 quart
 pika
 aiohttp  
+requests

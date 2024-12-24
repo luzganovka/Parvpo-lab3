@@ -95,13 +95,15 @@ def handle_post():
     print(f"DB:\tGot login = '{login}'", flush=True)
     # pid = int(request.headers['pid'])
     found = get_user_by_login(login)
-
-    print(f"DB:\tI've found:\t{found[0]}", flush=True)
     session.close()
+    if found:
+        print(f"DB:\tI've found:\t{found[0]}", flush=True)
 
-    # DEV: this return is unsafe!
-    # str_addresses = ''.join(str(x)+"," for x in found[0].addresses)
-    return jsonify({"id": found[0].id, "password": found[0].password}), 200
+        # DEV: this return is unsafe!
+        # str_addresses = ''.join(str(x)+"," for x in found[0].addresses)
+        # return jsonify({"id": found[0].get('id'), "password": found[0].get('password')}), 200
+        return jsonify({"id": found[0].id, "password": found[0].password}), 200
+    return jsonify({"id": '', "password": ''}), 404
 
 #################################################################################
 #       MAIN
