@@ -1,11 +1,11 @@
-from quart import Quart, render_template, request
+from quart import Quart, render_template, request, redirect, url_for
 import aiohttp
 import asyncio
 import pika
 import json
 import uuid
 import time
-time.sleep(15)
+time.sleep(10)
 
 app = Quart(__name__)
 
@@ -13,7 +13,6 @@ app = Quart(__name__)
 WORKER_URL = "http://worker:8080/"
 
 # Настройки RabbitMQ
-# RABBITMQ_HOST = 'rabbitmq-container'  # Имя RabbitMQ-контейнера из docker-compose.yml
 RABBITMQ_HOST = 'rabbitmq'  # Имя RabbitMQ-контейнера из docker-compose.yml
 QUEUE_NAME = 'task_queue'
 
@@ -55,7 +54,8 @@ class RpcClient(object):
         )
         while self.response is None:
             self.connection.process_data_events(time_limit=None)  # Ожидаем ответа
-        return self.response
+        print("WEB |\tGot response:\t", str(self.response.decode()), flush=True)
+        return self.response.decode()
 
 
 # # Соединение с RabbitMQ
@@ -86,8 +86,30 @@ async def login():
     login = form_data['login']
     password = form_data['password']
     
-    result = rpc_client.call(login, password)  # Отправляем запрос
-    return f"Login result: {result}"
+    response = rpc_client.call(login, password)  # Отправляем запрос
+    try:
+        code, user_id = response.split(",")
+    except:
+        code = "Unknown_code"
+        User_id = None
+
+    if code == "yes":
+        # Перенаправляем на домашнюю страницу пользователя
+        print(f"WEB:\tuser id = {user_id}")
+        return redirect(url_for('home', username=login))
+    else:
+        # Возвращаем страницу входа с сообщением об ошибке
+        return await render_template('login.html', error="Invalid username or password")
+
+
+@app.route('/home/<username>')
+async def home(username):
+    # Рендерим персонализированную домашнюю страницу
+    return await render_template('home.html', username=username)
+
+@app.route('/logout')
+async def logout():
+    redirect(url_for('/login'))
 
     # try:
     #     result = rpc_client.call(username, password)  # Отправляем запрос

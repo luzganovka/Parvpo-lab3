@@ -34,13 +34,13 @@ def ask_DB(login, password):
 
         if response.status_code == 200:
             data = response.json()
-            user_id = data.get("id")
+            user_id = int(data.get("id"))
             if password == data.get("password"):
                 print(f"WORKER:\tWelcome!", flush=True)
-                return "{'message': 'Welcome'}", 200
+                return f"yes,{user_id}"
             else:
                 print(f"WORKER:\tWrong login or password", flush=True)
-                return "{'message': 'Wrong login or password'}", 200
+                return f"no,{user_id}"
 
     
 

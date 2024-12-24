@@ -37,11 +37,25 @@ services:
     build:
       context: ./web-server
       no_cache: true
-    ports:
-      - "5000:5000"
-      - "8080:8080"
+    # ports:
+    #   - "5000:5000"
+    #   - "8080:8080"
     depends_on:
       - rabbitmq
+    networks:
+      - lab3network
+
+  nginx:
+    image: nginx
+    hostname: nginx
+    domainname: nginx
+    volumes:
+      - /home/luki/Study/PARVPO/PARVPO/Parvpo-lab3-drn/nginx-default.conf:/etc/nginx/conf.d/default.conf
+      - /home/luki/Study/PARVPO/PARVPO/Parvpo-lab3-drn/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "5000:5000"
+    depends_on:
+      - web-server
     networks:
       - lab3network
 
