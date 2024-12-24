@@ -7,8 +7,6 @@ WORKDIR /usr/src/app
 COPY . .
 
 RUN python -m pip install -r requirements.txt
-# python3 -m venv myenv
-# source myenv/bin/activate
 
 # Set the entry point for the container
 CMD [ "python", "./database.py" ]

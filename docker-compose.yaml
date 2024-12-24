@@ -22,8 +22,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management  # RabbitMQ с веб-интерфейсом
-    # container_name: rabbitmq-container
-    # container_name: rabbitmq
     ports:
       - "5672:5672"  # Порт для работы с брокером
       - "15672:15672"  # Порт для управления через веб-интерфейс
@@ -37,9 +35,6 @@ services:
     build:
       context: ./web-server
       no_cache: true
-    # ports:
-    #   - "5000:5000"
-    #   - "8080:8080"
     depends_on:
       - rabbitmq
     networks:

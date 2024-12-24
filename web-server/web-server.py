@@ -21,7 +21,10 @@ class RpcClient(object):
 
     def __init__(self):
         self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=RABBITMQ_HOST))
+            pika.ConnectionParameters(
+                host=RABBITMQ_HOST,
+                heartbeat=1800
+            ))
 
         self.channel = self.connection.channel()
 
@@ -57,25 +60,6 @@ class RpcClient(object):
         print("WEB |\tGot response:\t", str(self.response.decode()), flush=True)
         return self.response.decode()
 
-
-# # Соединение с RabbitMQ
-# def send_to_rabbitmq(message):
-#     try:
-#         connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
-#         channel = connection.channel()
-#         channel.queue_declare(queue=QUEUE_NAME, durable=True)  # Очередь устойчивая
-#         channel.basic_publish(
-#             exchange='',
-#             routing_key=QUEUE_NAME,
-#             body=json.dumps(message),
-#             properties=pika.BasicProperties(delivery_mode=2)  # Устойчивое сообщение
-#         )
-#         connection.close()
-#     except Exception as e:
-#         print(f"WEB |\tError sending message to RabbitMQ: {e}")
-#         raise e
-
-
 @app.route('/')
 async def index():
     return await render_template('login.html')  # Асинхронный рендеринг страницы
@@ -109,22 +93,7 @@ async def home(username):
 
 @app.route('/logout')
 async def logout():
-    redirect(url_for('/login'))
-
-    # try:
-    #     result = rpc_client.call(username, password)  # Отправляем запрос
-    #     return f"Login result: {result}"
-    # except:
-    #     return "WEB |\tError in rpc call!", 500
-
-    # message = {'login': login, 'password': password}
-
-    # try:
-    #     send_to_rabbitmq(message)
-    #     return "WEB |\tYour request has been queued successfully!", 200
-    # except Exception:
-    #     return "WEB |\tFailed to queue your request. Please try again later.", 500
-
+    return redirect(url_for('/'))
 
 if __name__ == '__main__':
     rpc_client = RpcClient()
