@@ -3,6 +3,9 @@ import aiohttp
 import asyncio
 import pika
 import json
+import uuid
+import time
+time.sleep(15)
 
 app = Quart(__name__)
 
@@ -12,25 +15,65 @@ WORKER_URL = "http://worker:8080/"
 # Настройки RabbitMQ
 # RABBITMQ_HOST = 'rabbitmq-container'  # Имя RabbitMQ-контейнера из docker-compose.yml
 RABBITMQ_HOST = 'rabbitmq'  # Имя RabbitMQ-контейнера из docker-compose.yml
-QUEUE_NAME = 'login_queue'
+QUEUE_NAME = 'task_queue'
 
 
-# Соединение с RabbitMQ
-def send_to_rabbitmq(message):
-    try:
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
-        channel = connection.channel()
-        channel.queue_declare(queue=QUEUE_NAME, durable=True)  # Очередь устойчивая
-        channel.basic_publish(
+class RpcClient(object):
+
+    def __init__(self):
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=RABBITMQ_HOST))
+
+        self.channel = self.connection.channel()
+
+        result = self.channel.queue_declare(queue='', exclusive=True)
+        self.callback_queue = result.method.queue
+
+        self.channel.basic_consume(
+            queue=self.callback_queue,
+            on_message_callback=self.on_response,
+            auto_ack=True)
+
+        self.response = None
+        self.corr_id = None
+
+    def on_response(self, ch, method, props, body):
+        if self.corr_id == props.correlation_id:
+            self.response = body
+
+    def call(self, username, password):
+        self.response = None
+        self.corr_id = str(uuid.uuid4())  # Уникальный идентификатор запроса
+        self.channel.basic_publish(
             exchange='',
-            routing_key=QUEUE_NAME,
-            body=json.dumps(message),
-            properties=pika.BasicProperties(delivery_mode=2)  # Устойчивое сообщение
+            routing_key=QUEUE_NAME,  # Очередь запросов
+            properties=pika.BasicProperties(
+                reply_to=self.callback_queue,  # Указываем очередь для ответа
+                correlation_id=self.corr_id,
+            ),
+            body=f"{username},{password}"
         )
-        connection.close()
-    except Exception as e:
-        print(f"WEB |\tError sending message to RabbitMQ: {e}")
-        raise e
+        while self.response is None:
+            self.connection.process_data_events(time_limit=None)  # Ожидаем ответа
+        return self.response
+
+
+# # Соединение с RabbitMQ
+# def send_to_rabbitmq(message):
+#     try:
+#         connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+#         channel = connection.channel()
+#         channel.queue_declare(queue=QUEUE_NAME, durable=True)  # Очередь устойчивая
+#         channel.basic_publish(
+#             exchange='',
+#             routing_key=QUEUE_NAME,
+#             body=json.dumps(message),
+#             properties=pika.BasicProperties(delivery_mode=2)  # Устойчивое сообщение
+#         )
+#         connection.close()
+#     except Exception as e:
+#         print(f"WEB |\tError sending message to RabbitMQ: {e}")
+#         raise e
 
 
 @app.route('/')
@@ -43,16 +86,26 @@ async def login():
     login = form_data['login']
     password = form_data['password']
     
-    message = {'login': login, 'password': password}
+    result = rpc_client.call(login, password)  # Отправляем запрос
+    return f"Login result: {result}"
 
-    try:
-        send_to_rabbitmq(message)
-        return "WEB |\tYour request has been queued successfully!", 200
-    except Exception:
-        return "WEB |\tFailed to queue your request. Please try again later.", 500
+    # try:
+    #     result = rpc_client.call(username, password)  # Отправляем запрос
+    #     return f"Login result: {result}"
+    # except:
+    #     return "WEB |\tError in rpc call!", 500
+
+    # message = {'login': login, 'password': password}
+
+    # try:
+    #     send_to_rabbitmq(message)
+    #     return "WEB |\tYour request has been queued successfully!", 200
+    # except Exception:
+    #     return "WEB |\tFailed to queue your request. Please try again later.", 500
 
 
 if __name__ == '__main__':
+    rpc_client = RpcClient()
     # Запускаем Quart-сервер
     print("WEB:\tStarting server...", flush=True)
     app.run(host='0.0.0.0', port=5000)

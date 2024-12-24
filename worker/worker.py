@@ -4,7 +4,7 @@ from requests.exceptions import HTTPError
 import pika
 import json
 import time
-time.sleep(30)
+time.sleep(15)
 #app = Flask(__name__)
 
 #worker-1  |   File "/usr/src/app/./worker.py", line 17, in ask_DB
@@ -14,7 +14,7 @@ time.sleep(30)
 
 # Настройки RabbitMQ
 RABBITMQ_HOST = 'rabbitmq'  # Имя RabbitMQ-контейнера из docker-compose.yml
-QUEUE_NAME = 'login_queue'
+QUEUE_NAME = 'task_queue'
 
 
 def ask_DB(login, password):
@@ -71,29 +71,44 @@ def ask_DB(login, password):
 #     return ask_DB(login, password)
 
 
-def process_message(ch, method, properties, body):
-    message = json.loads(body)
-    login = message['login']
-    password = message['password']
+# def process_message(ch, method, properties, body):
+#     message = json.loads(body)
+#     login = message['login']
+#     password = message['password']
 
-    # Обработка запроса
+#     # Обработка запроса
+#     print(f"WORKER |\tProcessing login request: login={login}, password={password}", flush=True)
+
+#     # Подтверждение обработки сообщения
+#     ch.basic_ack(delivery_tag=method.delivery_tag)
+
+#     return ask_DB(login, password)
+
+def on_request(ch, method, props, body):
+    login, password = body.decode().split(',')
     print(f"WORKER |\tProcessing login request: login={login}, password={password}", flush=True)
 
-    # Подтверждение обработки сообщения
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    response = ask_DB(login, password)
 
-    return ask_DB(login, password)
-
+    ch.basic_publish(exchange='',
+                    routing_key=props.reply_to,  # Очередь, указанная веб-сервером
+                    properties=pika.BasicProperties(
+                        correlation_id = props.correlation_id   # Передаём обратно correlation_id
+                    ),
+                    body=str(response))
+    ch.basic_ack(delivery_tag=method.delivery_tag)  # Подтверждаем обработку
 
 def main():
     credentials = pika.PlainCredentials('guest', 'guest')
     connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST, port=5672, credentials=credentials))
     channel = connection.channel()
-    channel.queue_declare(queue=QUEUE_NAME, durable=True)
-    
+    channel.queue_declare(queue=QUEUE_NAME)
+
+    channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(queue=QUEUE_NAME, on_message_callback=on_request)
 
     print("WORKER:\tWorker is waiting for messages...", flush=True)
-    channel.basic_consume(queue=QUEUE_NAME, auto_ack=True, on_message_callback=process_message)
+    # channel.basic_consume(queue=QUEUE_NAME, auto_ack=True, on_message_callback=process_message)
     channel.start_consuming()
 
 
